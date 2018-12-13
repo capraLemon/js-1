@@ -1,80 +1,66 @@
-class EagerGraph {
-	constructor() {
-	}
+class Graph {
+    receiveGraph(graph) {
+        this.graph = graph
+        this.keys = Object.keys(graph)
+        this.calcedVertexes = {}
+        this.keysArguments = []
 
-	receiveGraph(graph) {
-		this.graph = graph;
-		this.arrKeys = Object.keys(graph);
-		var funcVars = [];
-		var funcVarsStrict = []
-		var auxil = [];
-		for (var i = 0; i < this.arrKeys.length; i++) {
-			auxil = (graph[this.arrKeys[i]]).toString().match(/(\()(.*?)(\))/)[2].replace(/\s/g,"").split(',')
-			funcVarsStrict[funcVarsStrict.length] = auxil
-			for (var j = 0; j < auxil.length; j++) {
-				funcVars[funcVars.length] = auxil[j]
-			}
-		}
-		this.arrKeysFuncStrictVars = funcVarsStrict
-		funcVars = funcVars.filter((item, pos, self) => self.indexOf(item) == pos)
-		this.arrKeysFuncVars = funcVars
-		return this
-	}
+        let keysNoArguments = true
+        this.keys.forEach(key => {
+            let singleKeyArguments = (graph[key]).toString().match(/(\()(.*?)(\))/)[2].replace(/\s/g,"").split(',')
+            this.keysArguments.push(singleKeyArguments)
+            singleKeyArguments.forEach(argument => {
+                if (argument === "") {
+                    keysNoArguments = false
+                }
+                else if (!this.keys.includes(argument)) {
+                    throw new Error(`найдены аргументы функций, которых нет среди ключей: ${argument}`)
+                }
+            })
+        })
+        if (keysNoArguments) {
+            throw new Error('невозможно произвести расчет, должна быть хотя бы одна независимая вершина')
+        }
 
-	calcVertex(vertexName) {
-		if (this.arrKeysFuncVars.indexOf("") == -1) {
-			return console.log('не введен массив для расчета')
-		}
-		for (var i = 0; i < this.arrKeysFuncVars.length; i++) {
-				if ((this.arrKeys.indexOf(this.arrKeysFuncVars[i]) == -1) & (this.arrKeysFuncVars[i].length != 0)) {
-					return console.log('найдены аргументы функций, которых нет среди ключей')
-				}
-		}
-		var loopCheck = this.arrKeysFuncVars
-		var loopHelper = []
-		for (var i = 0; i < this.arrKeys.length; i++) {
-			for (var j = 0; j < loopCheck.length; j++) {
-				if (loopCheck[j] == "") {
-					continue
-				}
-				else {
-					for (var k = 0; k < this.arrKeysFuncStrictVars[this.arrKeys.indexOf(loopCheck[j])].length; k++) {
-						loopHelper[loopHelper.length] = 
-						this.arrKeysFuncStrictVars[this.arrKeys.indexOf(loopCheck[j])][k]
-					}
-				}
-			}
-			loopHelper = loopHelper.filter((item, pos, self) => self.indexOf(item) == pos)
-			loopCheck = loopHelper
-			loopHelper = []
-		}
-		if (loopCheck.length != 0) {
-			return console.log('возможно петлевая зависимость')
-		}
+        return this
+    }
 
-		var answer = {}
-		var argFunc = []
-		done: while (Object.keys(answer).length != this.arrKeys.length) {
-			for (var i = 0; i < this.arrKeysFuncStrictVars.length; i++) {
-				argFunc = []
-				for (var j = 0; j < this.arrKeysFuncStrictVars[i].length; j++) {
-					if (this.arrKeysFuncStrictVars[i][j].length == 0 & answer[this.arrKeys[i]] == undefined) {
-						answer[this.arrKeys[i]] = this.graph[this.arrKeys[i]]()
-					}
-					if (answer[this.arrKeysFuncStrictVars[i][j]] == undefined) {
-						break
-					}
-					else {
-						argFunc[argFunc.length] = answer[this.arrKeysFuncStrictVars[i][j]]
-					}
-				if (j == this.arrKeysFuncStrictVars[i].length-1) {
-					answer[this.arrKeys[i]] = this.graph[this.arrKeys[i]].apply(this, argFunc)
-				}
-				}
-			}
-		}
-		return answer[vertexName]
-	}
+    vertexValueSearch(vertexName, depth=0) {
+        if (vertexName in this.calcedVertexes) {
+            return this.calcedVertexes[vertexName]
+        }
+        depth++
+        let argFunc = []
+        let examineVars = this.keysArguments[this.keys.indexOf(vertexName)]
+        examineVars.forEach(vertexArgument => {
+            if (!(vertexName in this.calcedVertexes) && vertexArgument === "") {
+                this.calcedVertexes[vertexName] = this.graph[vertexName]()
+            }
+            else if (depth >= this.keys.length) {
+                throw new Error(`присутсвуют вершины, которые циклически зависят друг от друга: ${vertexName}`)
+            }
+            else if (!(vertexArgument in this.calcedVertexes)) {
+                this.vertexValueSearch(vertexArgument, depth)
+                argFunc.push(this.calcedVertexes[vertexArgument])
+            }
+            else {
+                argFunc.push(this.calcedVertexes[vertexArgument])
+            }
+        })
+        this.calcedVertexes[vertexName] = this.graph[vertexName].apply(this, argFunc)
+        return this.calcedVertexes[vertexName]
+    }
+}
+
+
+class EagerGraph extends Graph {
+    calcVertex(vertexName) {
+        if (!this.keys.includes(vertexName)) {
+            throw new Error(`нет такой вершины: ${vertexName}`)
+        }
+        this.keys.forEach(vertex => {this.vertexValueSearch(vertex)})
+        return this.calcedVertexes[vertexName]
+    }
 }
 
 
@@ -82,7 +68,7 @@ class EagerGraph {
 
 const x = [1, 2, 3, 6]
 const Igraph = {
-	xs: () => x,
+    xs: () => x,
 
     n: (xs) => xs.length,
     m: (xs, n) => xs.reduce((accumul, currVal) => accumul + currVal) / n,
