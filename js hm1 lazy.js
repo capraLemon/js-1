@@ -21,26 +21,37 @@ class Graph {
         if (keysNoArguments) {
             throw new Error('невозможно произвести расчет, должна быть хотя бы одна независимая вершина')
         }
-
+        function loopCheck(vertexName, keysArguments, keys, depth=0) {
+            depth++
+            let examineVars = keysArguments[keys.indexOf(vertexName)]
+            examineVars.forEach((vertexArgument) => {
+                if (vertexArgument !== "") {
+                    if (depth >= keys.length) {
+                        throw new Error(`присутсвуют вершины, которые циклически зависят друг от друга: ${vertexName}`)
+                    }
+                    else {
+                        return loopCheck(vertexArgument, keysArguments, keys, depth)
+                    }
+                }
+            })
+        }
+        this.keys.forEach(key => loopCheck(key, this.keysArguments, this.keys))
+        
         return this
     }
 
-    vertexValueSearch(vertexName, depth=0) {
+    vertexValueSearch(vertexName) {
         if (vertexName in this.calcedVertexes) {
             return this.calcedVertexes[vertexName]
         }
-        depth++
         let argFunc = []
         let examineVars = this.keysArguments[this.keys.indexOf(vertexName)]
         examineVars.forEach(vertexArgument => {
             if (!(vertexName in this.calcedVertexes) && vertexArgument === "") {
                 this.calcedVertexes[vertexName] = this.graph[vertexName]()
             }
-            else if (depth >= this.keys.length) {
-                throw new Error(`присутсвуют вершины, которые циклически зависят друг от друга: ${vertexName}`)
-            }
             else if (!(vertexArgument in this.calcedVertexes)) {
-                this.vertexValueSearch(vertexArgument, depth)
+                this.vertexValueSearch(vertexArgument)
                 argFunc.push(this.calcedVertexes[vertexArgument])
             }
             else {
