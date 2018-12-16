@@ -21,20 +21,21 @@ class Graph {
         if (keysNoArguments) {
             throw new Error('невозможно произвести расчет, должна быть хотя бы одна независимая вершина')
         }
-        function loopCheck(vertexName, keysArguments, keys, depth=0) {
-            depth++
+        function loopCheck(vertexName, keysArguments, keys) {
+            argumentsChain.push(vertexName)
             let examineVars = keysArguments[keys.indexOf(vertexName)]
-            examineVars.forEach((vertexArgument) => {
-                if (vertexArgument !== "") {
-                    if (depth >= keys.length) {
+            examineVars.forEach(vertexArgument => {
+                if (!(vertexArgument in noLoopArguments) && vertexArgument !== "") {
+                    if (argumentsChain.includes(vertexArgument)) {
                         throw new Error(`присутсвуют вершины, которые циклически зависят друг от друга: ${vertexName}`)
                     }
-                    else {
-                        return loopCheck(vertexArgument, keysArguments, keys, depth)
-                    }
+                    return loopCheck(vertexArgument, keysArguments, keys)
                 }
             })
+            noLoopArguments[argumentsChain.pop()] = true
         }
+        let noLoopArguments = {}
+        let argumentsChain = []
         this.keys.forEach(key => loopCheck(key, this.keysArguments, this.keys))
         
         return this
